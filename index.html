@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enterprise Telegram Archive Manager</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header class="app-header">
+        <div class="logo-area">
+            <h1>📖 Telegram Archive Manager</h1>
+            <p>Enterprise Off-Line Categorization, Live Querying & Channel Discovery Platform</p>
+        </div>
+        <div class="stats-area">
+            <span id="stat-categories">Categories: 0</span> | 
+            <span id="stat-links">Bookmarks: 0</span>
+        </div>
+    </header>
+
+    <div class="app-layout">
+        <!-- Collapsible Left Navigation Drawer -->
+        <aside class="sidebar" id="sidebar-drawer">
+            <div class="sidebar-header">
+                <h3 style="font-size: 0.85rem; margin-bottom: 0;">Navigation Panel</h3>
+                <button class="sidebar-toggle-btn" id="sidebar-toggle" title="Collapse Sidebar">◀ Collapse</button>
+            </div>
+            <div class="sidebar-content">
+                <div class="card">
+                    <h3>🔑 TG Bot Settings</h3>
+                    <div class="form-group">
+                        <input type="password" id="bot-token" placeholder="Bot Token (e.g. 123456:ABC...)">
+                    </div>
+                    <button id="btn-test-bot" class="btn btn-sm btn-primary" style="margin-top: 8px; width: 100%;">Test API Connection</button>
+                </div>
+
+                <div class="card" style="flex-grow: 1; display: flex; flex-direction: column; min-height: 250px;">
+                    <div class="tree-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <h3 style="margin-bottom:0;">📂 Categories</h3>
+                        <button id="btn-add-main-cat" class="btn btn-sm btn-success">➕ Add Root</button>
+                    </div>
+                    <div id="category-tree" class="category-tree" style="flex-grow: 1;">
+                        <!-- Category tree renders dynamically -->
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>📥 Data Export/Import</h3>
+                    <div class="flex-column">
+                        <button id="btn-export" class="btn btn-sm" style="width: 100%;">📤 Export Standard Bookmarks</button>
+                        <button id="btn-export-db" class="btn btn-sm btn-success" style="width: 100%;">💾 Export Database Backup</button>
+                        <label for="file-import" class="btn btn-sm btn-primary" style="text-align: center; cursor: pointer; width: 100%;">📥 Import Backup or Bookmark File</label>
+                        <input type="file" id="file-import" accept=".html" style="display: none;">
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Workspace Panel -->
+        <main class="workspace">
+            <div class="workspace-header">
+                <button class="btn btn-sm btn-primary" id="sidebar-expand" style="display:none;" title="Expand Sidebar">▶ Category Tree</button>
+            </div>
+
+            <!-- Action Toolbar containing dropdown menus (Gmail style) -->
+            <div class="action-toolbar">
+                <div class="toolbar-left">
+                    <div class="checkbox-group" style="margin-right: 8px;">
+                        <input type="checkbox" id="select-all-links">
+                        <label for="select-all-links" class="text-bold">Select All</label>
+                    </div>
+
+                    <!-- Add Bookmarks Menu -->
+                    <div class="dropdown">
+                        <button class="dropdown-trigger">➕ Add Bookmarks ▾</button>
+                        <div class="dropdown-content">
+                            <button id="menu-add-single">Add Single Handle</button>
+                            <button id="menu-add-bulk">Add Bulk Raw Text</button>
+                        </div>
+                    </div>
+
+                    <!-- Automation Suite Menu -->
+                    <div class="dropdown">
+                        <button class="dropdown-trigger" style="color: var(--primary);">⚙️ Automation Actions ▾</button>
+                        <div class="dropdown-content">
+                            <button id="menu-sync-metrics">🔄 Pull Selected Metrics</button>
+                            <button id="menu-check-recency">📅 Verify Activity Recency</button>
+                            <button id="menu-detect-languages">🌐 Run Language Classifiers</button>
+                            <button id="menu-scrape-descriptions">📝 Scrape Selected Bios</button>
+                            <button id="menu-discover-channels">🔍 Crawl Forward For New Channels</button>
+                        </div>
+                    </div>
+
+                    <!-- Folder Actions Menu -->
+                    <div class="dropdown">
+                        <button class="dropdown-trigger">📂 Relocate / Copy ▾</button>
+                        <div class="dropdown-content" style="padding: 10px; width: 250px;">
+                            <label for="bulk-move-select" style="font-size:0.7rem; font-weight:600; display:block; margin-bottom:4px;">TARGET CATEGORY:</label>
+                            <select id="bulk-move-select" style="margin-bottom: 8px;"></select>
+                            <div style="display:flex; gap:6px;">
+                                <button id="btn-bulk-move-links" class="btn btn-sm btn-primary" style="flex:1;">Move</button>
+                                <button id="btn-bulk-copy-links" class="btn btn-sm" style="flex:1;">Copy</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button id="btn-bulk-delete-links" class="btn btn-danger">🗑 Delete Selected</button>
+                </div>
+
+                <div class="toolbar-right">
+                    <span>Active Folder: <strong id="current-path-display">Root (All)</strong></span>
+                </div>
+            </div>
+
+            <!-- Primary Data Table Grid -->
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th width="30"></th>
+                            <th width="70">Order</th>
+                            
+                            <th style="min-width: 180px;">
+                                <div class="th-content">
+                                    <div class="th-sort" onclick="toggleSort('name')">Display Title <span id="sort-icon-name" class="sort-icon">⇅</span></div>
+                                    <input type="text" id="col-filter-title" class="col-filter-input" placeholder="Filter title...">
+                                </div>
+                            </th>
+                            
+                            <th style="min-width: 150px;">
+                                <div class="th-content">
+                                    <div class="th-sort" onclick="toggleSort('handle')">Handle <span id="sort-icon-handle" class="sort-icon">⇅</span></div>
+                                    <input type="text" id="col-filter-handle" class="col-filter-input" placeholder="Filter handle...">
+                                </div>
+                            </th>
+                            
+                            <th style="min-width: 120px;">
+                                <div class="th-content">
+                                    <div class="th-sort" onclick="toggleSort('language')">Language <span id="sort-icon-language" class="sort-icon">⇅</span></div>
+                                    <select id="col-filter-lang" class="col-filter-select">
+                                        <option value="all">All</option>
+                                    </select>
+                                </div>
+                            </th>
+                            
+                            <th style="min-width: 110px;">
+                                <div class="th-content">
+                                    <div class="th-sort" onclick="toggleSort('subscribers')">Subscribers <span id="sort-icon-subscribers" class="sort-icon">⇅</span></div>
+                                    <input type="text" id="col-filter-subs" class="col-filter-input" placeholder="Min...">
+                                </div>
+                            </th>
+                            
+                            <th style="min-width: 100px;">
+                                <div class="th-content">
+                                    <div class="th-sort" onclick="toggleSort('posts')">Posts <span id="sort-icon-posts" class="sort-icon">⇅</span></div>
+                                    <input type="text" id="col-filter-posts" class="col-filter-input" placeholder="Min...">
+                                </div>
+                            </th>
+                            
+                            <th style="min-width: 150px;">
+                                <div class="th-content">
+                                    <div class="th-sort" onclick="toggleSort('folder')">Folder <span id="sort-icon-folder" class="sort-icon">⇅</span></div>
+                                    <select id="col-filter-folder" class="col-filter-select">
+                                        <option value="all">All</option>
+                                    </select>
+                                </div>
+                            </th>
+                            
+                            <th style="min-width: 110px;">
+                                <div class="th-content">
+                                    <div class="th-sort" onclick="toggleSort('status')">Status <span id="sort-icon-status" class="sort-icon">⇅</span></div>
+                                    <select id="col-filter-status" class="col-filter-select">
+                                        <option value="all">All</option>
+                                        <option value="alive">Active</option>
+                                        <option value="dead">Deactivated</option>
+                                    </select>
+                                </div>
+                            </th>
+                            
+                            <th width="80">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="links-table-body">
+                        <!-- Populated programmatically -->
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <!-- Reusable Modals -->
+    <!-- Modal 1: Add Single Bookmark -->
+    <div class="modal-overlay" id="modal-single-container">
+        <div class="modal-container" style="max-width: 450px;">
+            <div class="modal-header">
+                <h3>Add Single Channel / Link</h3>
+                <button class="modal-close-btn" onclick="closeModal('modal-single-container')">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group flex-column">
+                    <label class="text-bold" for="single-input-link">Channel Username or Web URL:</label>
+                    <input type="text" id="single-input-link" placeholder="e.g. @durov or https://t.me/durov">
+                </div>
+                <div class="form-group flex-column">
+                    <label class="text-bold" for="single-target-category">Destination Category Folder:</label>
+                    <select id="single-target-category"></select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeModal('modal-single-container')">Cancel</button>
+                <button class="btn btn-primary" id="btn-save-single">Save Bookmark</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 2: Add Bulk Bookmarks -->
+    <div class="modal-overlay" id="modal-bulk-container">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3>Add Bulk Bookmarks</h3>
+                <button class="modal-close-btn" onclick="closeModal('modal-bulk-container')">×</button>
+            </div>
+            <div class="modal-body">
+                <p class="help-text">Paste text containing multiple handles, URLs, or exported elements. The parser will extract usernames automatically.</p>
+                <textarea id="bulk-textarea" rows="6" placeholder="Paste texts here..."></textarea>
+                
+                <div class="checkbox-group">
+                    <input type="checkbox" id="chk-discovery-groups" checked>
+                    <label for="chk-discovery-groups" class="text-bold">Identify connected discussion groups (requires bot token)</label>
+                </div>
+
+                <button id="btn-analyze-bulk" class="btn btn-primary">Analyze Inputs</button>
+
+                <!-- Scraped Preview Container -->
+                <div id="bulk-preview-sub-box" style="display:none; margin-top:10px;" class="flex-column">
+                    <label class="text-bold">Parsed Entities Queue:</label>
+                    <div class="table-container" style="max-height: 180px;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th width="30"><input type="checkbox" id="select-all-bulk" checked></th>
+                                    <th>Suggested Title</th>
+                                    <th>Extracted Identifier</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="bulk-preview-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="form-group flex-column">
+                    <label class="text-bold" for="bulk-target-category">Destination Folder Context:</label>
+                    <select id="bulk-target-category"></select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeModal('modal-bulk-container')">Cancel</button>
+                <button class="btn btn-success" id="btn-save-bulk">Import Checked to Library</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 3: Automation Monitor Console -->
+    <div class="modal-overlay" id="modal-automation-container">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3 id="automation-title-display">Processing Selected Elements</h3>
+                <button class="modal-close-btn" onclick="closeModal('modal-automation-container')">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="progress-container" id="sync-progress-wrapper">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-secondary);">
+                        <span id="sync-progress-text">Processing: 0/0</span>
+                        <span id="sync-progress-percent">0%</span>
+                    </div>
+                    <div class="progress-bar-wrapper">
+                        <div class="progress-fill" id="sync-progress-fill"></div>
+                    </div>
+                </div>
+                <div class="flex-column" style="margin-top:10px;">
+                    <label class="text-bold">Live Execution Output Log:</label>
+                    <div id="sync-console" class="system-console">[System Ready] Initializing connection ports...</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="closeModal('modal-automation-container')">Close Monitor Console</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 4: Crawler Discovery Results Queue -->
+    <div class="modal-overlay" id="modal-discovery-container">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3>🔍 Discovered Network Entities</h3>
+                <button class="modal-close-btn" onclick="closeModal('modal-discovery-container')">×</button>
+            </div>
+            <div class="modal-body">
+                <p class="help-text">These public directories were extracted from forward attributes within the last messages of your checked nodes, and do not exist in your collection yet.</p>
+                
+                <div class="table-container" style="max-height: 250px;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th width="40"><input type="checkbox" id="select-all-discovered" checked></th>
+                                <th>Target Address</th>
+                                <th>Source Path Forward</th>
+                            </tr>
+                        </thead>
+                        <tbody id="discovery-results-body"></tbody>
+                    </table>
+                </div>
+
+                <div class="form-group flex-column" style="margin-top: 10px;">
+                    <label class="text-bold" for="discovered-target-category">Import Discovered Items Into Category:</label>
+                    <select id="discovered-target-category"></select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeModal('modal-discovery-container')">Cancel</button>
+                <button class="btn btn-success" id="btn-save-discovered">Import Selected Channels</button>
+            </div>
+        </div>
+    </div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
