@@ -1,19 +1,36 @@
-```
 # Python
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-
-# Database
-data/bookmarks.db
-
-# Logs and temp files
-*.log
-*.tmp
+*.so
+.Python
+venv/
+env/
+ENV/
+*.egg-info/
+*.egg
 
 # Environment
 .env
 .env.local
 .env.*
-```
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Sessions (keep the directory, ignore contents)
+data/sessions/*.session
+data/sessions/*.session-journal
+
+# Logs
+*.log
+*.tmp
